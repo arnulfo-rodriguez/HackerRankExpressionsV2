@@ -1,5 +1,7 @@
 import java.util.regex.Pattern
 
+import scala.annotation.tailrec
+
 //Expression ::= Term [+-] Expression
 //  | Term
 //
@@ -39,7 +41,7 @@ object Solution {
   class Tokenizer(input: String) {
     val SEPARATOR = ' '
 
-    var current = 0;
+    var current = 0
     val isNumber: Pattern = Pattern.compile("\\d");
 
     def next(): Option[Any] = {
@@ -50,7 +52,7 @@ object Solution {
         return None
       }
       if (currentIsNumber) {
-        val initialIndex = current;
+        val initialIndex = current
         while (current < input.length && currentIsNumber) {
           current += 1
         }
@@ -64,11 +66,11 @@ object Solution {
       }
     }
 
-    private def currentIsNumber = {
+    private def currentIsNumber: Boolean = {
       input(current) >= '0' && input(current) <= '9'
     }
 
-    def pushBack: Unit = {
+    def pushBack(): Unit = {
       if (current > 0) {
         current -= 1
       } else {
@@ -92,12 +94,10 @@ object Solution {
       val expr = parseTerm()
       tokenizer
         .next()
-        .map { x =>
-          x match {
-            case PLUS => Add(expr, parseExpression())
-            case MINUS => Sub(expr, parseExpression())
-            case _ => tokenizer.pushBack; expr
-          }
+        .map {
+          case PLUS => Add(expr, parseExpression())
+          case MINUS => Sub(expr, parseExpression())
+          case _ => tokenizer.pushBack(); expr
         }.getOrElse(expr)
     }
 
@@ -106,12 +106,10 @@ object Solution {
       parseFactor().flatMap { expr =>
         tokenizer
           .next()
-          .map { x =>
-            x match {
-              case MUL => Mult(expr, parseTerm())
-              case DIV => Div(expr, parseTerm())
-              case _ => tokenizer.pushBack; expr
-            }
+          .map {
+            case MUL => Mult(expr, parseTerm())
+            case DIV => Div(expr, parseTerm())
+            case _ => tokenizer.pushBack(); expr
           }.orElse(Some(expr))
       }.get
     }
@@ -122,26 +120,23 @@ object Solution {
         .next()
         .flatMap {
           case x: Long => Some(Literal(x))
-          case OPEN_PAREN => {
+          case OPEN_PAREN =>
             val innerExpr = parseExpression()
             tokenizer
               .next()
               .map {
                 case CLOSE_PAREN => innerExpr
                 case _ => fail
-              }
-          };
-          case PLUS => {
+              };
+          case PLUS =>
             parseFactor().map { expr =>
               UnaryPlus(expr)
             }
-          }
-          case MINUS => {
+          case MINUS =>
             parseFactor().map { expr =>
               UnaryMinus(expr)
             }
-          }
-          case unexpected => tokenizer.pushBack; None
+          case _ => tokenizer.pushBack(); None
         }
     }
 
@@ -153,8 +148,8 @@ object Solution {
 
 
   object Evaluator {
-    val p = Add(Pow(Literal(10), Literal(9)), Literal(7))
-    val p_minus_two = Add(Pow(Literal(10), Literal(9)), Literal(5))
+    val p = Literal(1000000007)
+    val p_minus_two = Literal(1000000005)
   }
 
   class Evaluator() {
@@ -162,11 +157,9 @@ object Solution {
     import Evaluator._
 
     def evaluate(tree: Expression): Long = {
-      val transformed = transform(tree)
+      val transformed = transform(Modulus(tree, p))
       println(transformed)
-      val simplified = simplify(Modulus(transformed, p))
-      println(simplified)
-      val result = evaluateRec(simplified)
+      val result = evaluateRec(transformed)
       result
     }
 
@@ -177,45 +170,55 @@ object Solution {
         case Mult(x, y) => evaluateRec(x) * evaluateRec(y)
         case Sub(x, y) => evaluateRec(x) - evaluateRec(y)
         case UnaryMinus(x) => -1 * evaluateRec(x)
-        case Pow(x, y) => scala.math.pow(evaluateRec(x), evaluateRec(y)).toLong
-        case Modulus(Pow(x, y), m) => {
+        case Pow(x, y) =>
+          scala.math.pow(evaluateRec(x), evaluateRec(y)).toLong
+        case Modulus(Pow(x, y), m) =>
           val eval_x = evaluateRec(x)
           val eval_y = evaluateRec(y)
           val eval_m = evaluateRec(m)
-          val result = (1l to eval_y - 1).map{_ => eval_x}.foldLeft(eval_x) { (acc, _) => (acc * eval_x) % eval_m }
-          println(s"($eval_x ^ $eval_y) % $eval_m = $result")
-          result
-        }
-        case Modulus(x, y) => evaluateRec(x) % evaluateRec(y)
+          fastExponentation(eval_x,eval_y,eval_m)
+        case Modulus(x, y) =>
+          evaluateRec(x) % evaluateRec(y)
       }
       //println(s"Expression $expression evaluated to $result")
       result
     }
 
-    private def transform(expression: Expression): Expression = {
-      expression match {
-        case Add(x, y) => Add(transform(x), transform(y))
-        case Mult(x, y) => Mult(transform(x), transform(y))
-        case Div(x, y) => Mult(transform(x), Pow(transform(y), p_minus_two))
-        case Sub(x, y) => Sub(transform(x), transform(y))
-        case UnaryMinus(x) => Mult(Literal(-1), transform(x))
-        case UnaryPlus(x) => transform(x)
-        case x => x
-      }
+    @tailrec
+    private def modularExponentiation(x: Long, y: Long, m: Long, acc: Long): Long = y match {
+      case 0 => acc
+      case _ => modularExponentiation(x, y - 1, m, acc * x % m)
     }
 
-    private def simplify(expression: Expression): Expression = expression match {
-      case Modulus(Mult(x, y), z) =>
-        val simplified_z = simplify(z)
-        Modulus(Mult(simplify(Modulus(simplify(x), simplified_z)), simplify(Modulus(simplify(y), simplified_z))), simplified_z)
-      case Pow(x, Add(Pow(a, b), c)) =>
-        val simplified_x = simplify(x)
-        simplify(Mult(Pow(simplified_x,simplify(Mult(simplify(a),simplify(b)))),simplify(Pow(simplified_x,simplify(c)))))
-      case Pow(Pow(a,b),c) => simplify(Pow(a,Mult(b,c)))
-      case Add(x, y) => Add(simplify(x), simplify(y))
-      case Mult(x, y) => Mult(simplify(x), simplify(y))
-      case Sub(x, y) => Sub(simplify(x), simplify(y))
-      case Modulus(x, y) => Modulus(simplify(x), simplify(y))
+    private def fastExponentation(a: Long, b: Long, m: Long): Long = b match {
+      case 0 => 1
+      case even if even % 2 == 0 => scala.math.pow(fastExponentation(a, b / 2, m), 2).toLong % m
+      case _ => (scala.math.pow(fastExponentation(a, (b - 1) / 2, m), 2).toLong * a) % m
+    }
+
+
+    def isAlreadySimplified(x: Expression, y: Expression): Boolean = (x, y) match {
+      case (Modulus(_, _), Modulus(_, _)) => true;
+      case _ => false
+    }
+
+    private def transform(expression: Expression): Expression = expression match {
+      case Modulus(Modulus(a, b), c) if b == c => transform(Modulus(a, b))
+      case Modulus(Mult(x,y),m) => transform(Mult(Modulus(x,m),Modulus(y,m)))
+      case Div(x, y) => transform(Modulus(Mult(x, Pow(y, p_minus_two)), p))
+      case Pow(Pow(a, b), c) => transform(Pow(a, Mult(b, c)))
+      case Add(x, y) => Add(transform(x), transform(y))
+      case Mult(x, y) => Mult(transform(x), transform(y))
+      case Sub(x, y) => Sub(transform(x), transform(y))
+      case Modulus(x, y) =>
+        val transformed_x = transform(x)
+        val transformed_y = transform(y)
+        val result = Modulus(transformed_x, transformed_y)
+        if (transformed_x == x && transformed_y == y) {
+          result
+        } else {
+          transform(result)
+        }
       case x => x
 
     }
