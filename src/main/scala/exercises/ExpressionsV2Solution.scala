@@ -1,6 +1,6 @@
-import java.util.regex.Pattern
+package exercises
 
-import scala.annotation.tailrec
+import java.util.regex.Pattern
 
 //Expression ::= Term [+-] Expression
 //  | Term
@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 //
 
 
-object Solution {
+object ExpressionsV2Solution {
 
 
   sealed abstract class Expression
@@ -32,13 +32,6 @@ object Solution {
   case class UnaryPlus(innerExpression: Expression) extends Expression
 
   case class UnaryMinus(innerExpression: Expression) extends Expression
-
-  case class Power(base: Expression, exponent: Expression) extends Expression
-
-  case class Symbol(name: String) extends Expression
-
-  //Simplified
-  case class Mono(coefficient: Literal, symbol: Symbol, exponent: Literal)
 
 
   class Tokenizer(input: String) {
@@ -61,13 +54,6 @@ object Solution {
         }
         return Some(input.substring(initialIndex, current).toLong)
       }
-      if (currentIsSymbol) {
-        val initialIndex = current
-        while (current < input.length && currentIsSymbol) {
-          current += 1
-        }
-        return Some(input.substring(initialIndex, current))
-      }
       if (current < input.length) {
         current += 1
         Some(input(current - 1))
@@ -78,10 +64,6 @@ object Solution {
 
     private def currentIsNumber: Boolean = {
       input(current) >= '0' && input(current) <= '9'
-    }
-
-    private def currentIsSymbol: Boolean = {
-      (input(current) >= 'a' && input(current) <= 'z') || (input(current) >= 'A' && input(current) <= 'Z')
     }
 
     def pushBack(): Unit = {
@@ -101,7 +83,6 @@ object Solution {
     val MUL = '*'
     val DIV = '/'
     val MINUS = '-'
-    val POW = 'ˆ'
 
     val tokenizer = new Tokenizer(input)
 
@@ -118,33 +99,23 @@ object Solution {
 
 
     def parseTerm(): Expression = {
-      val expr = parseTermPrime()
-      tokenizer
-        .next()
-        .map {
-          case Mult => Mult(expr, parseExpression())
-          case Div => Div(expr, parseExpression())
-          case _ => tokenizer.pushBack(); expr
-        }.getOrElse(expr)
-    }
-
-    def parseTermPrime() : Expression = {
       parseFactor().flatMap { expr =>
         tokenizer
           .next()
           .map {
-            case POW => Power(expr, parseExpression())
+            case MUL => Mult(expr, parseTerm())
+            case DIV => Div(expr, parseTerm())
             case _ => tokenizer.pushBack(); expr
           }.orElse(Some(expr))
       }.get
     }
+
 
     def parseFactor(): Option[Expression] = {
       tokenizer
         .next()
         .flatMap {
           case x: Long => Some(Literal(x))
-          case x: String => Some(Symbol(x))
           case OPEN_PAREN =>
             val innerExpr = parseExpression()
             tokenizer
@@ -172,15 +143,31 @@ object Solution {
   }
 
 
+  object Evaluator {
+    val p = 1000000007l
+    val p_minus_two = 1000000005l
+  }
 
   class Evaluator() {
 
-    def simplify(tree: Expression): Expression = {
-       tree
+    import Evaluator._
+
+    def evaluate(tree: Expression): Long = {
+      val result = evaluateRec(tree)
+      if (result < 0) p + result else result
     }
 
-    private def simplifyRec(expression: Expression): Expression = {
-      expression
+    private def evaluateRec(expression: Expression): Long = {
+      val result = expression match {
+        case Literal(x) => x
+        case Add(x, y) => (evaluateRec(x) + evaluateRec(y)) % p
+        case Mult(x, y) => (evaluateRec(x) * evaluateRec(y)) % p
+        case Sub(x, y) => (evaluateRec(x) - evaluateRec(y)) % p
+        case UnaryMinus(x) => (-1 * evaluateRec(x)) % p
+        case Div(x,y) => (evaluateRec(x) * fastExponentiation(evaluateRec(y),p_minus_two,p)) % p
+      }
+      //println(s"Expression $expression evaluated to $result")
+      result
     }
 
 
@@ -203,8 +190,8 @@ object Solution {
     val l = scala.io.StdIn.readLine()
 
     val tree = new Parser(l).parseExpression()
-    println(tree)
-    println(new Evaluator().simplify(tree))
+    //println(tree)
+    println(new Evaluator().evaluate(tree))
   }
 }
 
