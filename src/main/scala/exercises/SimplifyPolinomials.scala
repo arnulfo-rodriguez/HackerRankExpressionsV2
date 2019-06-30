@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 //
 
 
-object Solution {
+object SimplifyPolinomials {
 
 
   sealed abstract class Expression
