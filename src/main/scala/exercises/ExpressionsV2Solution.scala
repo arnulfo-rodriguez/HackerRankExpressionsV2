@@ -143,7 +143,7 @@ object ExpressionsV2Solution {
             parseFactor().map { expr =>
               UnaryMinus(expr)
             }
-          case POW
+          //case POW
           case _ => tokenizer.pushBack(); None
         }
     }
