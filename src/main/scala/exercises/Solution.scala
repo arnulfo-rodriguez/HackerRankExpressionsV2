@@ -1,8 +1,62 @@
 import java.io._
 
+import scala.annotation.tailrec
+
 object Solution {
 
   import scala.collection.SortedSet
+
+
+  trait Tree {
+    def add(range: Range): Tree
+    def sumIntersections(toFind: Range) : Long
+
+    val furthestRight: Int
+  }
+
+  case object emptyTree extends Tree {
+    override def add(range: Range): Tree = AugmentedTree.newTree(range)
+
+    override val furthestRight: Int = 0;
+
+    override def sumIntersections(toFind: Range): Long = 0l
+  }
+
+  case class AugmentedTree(range: Range, furthestRight: Int, left: Option[AugmentedTree], right: Option[AugmentedTree]) extends Tree {
+
+    def add(otherRange: Range): AugmentedTree = {
+      if (otherRange.start == range.start && otherRange.end == range.end) {
+        val newRange = Range(range.start, range.end, range.increase + otherRange.increase)
+        AugmentedTree(newRange, furthestRight, left, right)
+      } else if (otherRange.start <= range.start) {
+        left match {
+          case Some(l) => AugmentedTree(range, math.max(furthestRight, otherRange.end), Some(l.add(otherRange)), right)
+          case None => AugmentedTree(range, math.max(furthestRight, otherRange.end), Some(AugmentedTree.newTree(otherRange)), right)
+        }
+      } else {
+        right match {
+          case Some(r) => AugmentedTree(range, math.max(furthestRight, otherRange.end), left, Some(r.add(otherRange)))
+          case None => AugmentedTree(range, math.max(furthestRight, otherRange.end), right, Some(AugmentedTree.newTree(otherRange)))
+        }
+      }
+    }
+
+    def sumIntersections(toFind: Range, total : Long): Long = {
+      val value = if ((range.start > toFind.end) || (range.end < toFind.start)) 0 else range.increase + total
+      (left match {
+          case Some(x) => x.sumIntersections(toFind)
+          case None => value
+        }) +
+          (right match {
+            case Some(x: AugmentedTree) if x.furthestRight >= toFind.start => x.sumIntersections(toFind,value)
+            case _ => value
+          })
+    }
+  }
+
+  object AugmentedTree {
+    def newTree(range: Range): AugmentedTree = AugmentedTree(range, range.end, Option.empty, Option.empty)
+  }
 
 
   case class Range(start: Int, end: Int, increase: Int) {
@@ -12,80 +66,19 @@ object Solution {
 
     def isAfter(other: Range): Boolean = other.end < start
 
-    def splitIntersection(other: Range): Seq[Range] = {
-
-      SortedSet(start, end, other.start, other.end).toSeq match {
-
-        case Seq(p1, p2) if p1 == start && p1 == end => Seq(Range(p1, p1, increase + other.increase), Range(p1 + 1, p2, other.increase))
-
-        case Seq(p1, p2) if p2 == start && p2 == end => Seq(Range(p1, p2 - 1, other.increase), Range(p2, p2, other.increase + increase))
-
-        //Both are the same range
-        case Seq(_) | Seq(_, _) => Seq(Range(start, end, other.increase + increase))
-
-        //Intersect in 3 points and create 3 Ranges
-        case Seq(p1, p2, p3) if start == p1 && end == p2 && other.start == p2 =>
-          Seq(Range(p1, p2 - 1, increase), Range(p2, p2, increase + other.increase), Range(p2 + 1, p3, other.increase))
-
-        case Seq(p1, p2, p3) if other.start == p2 && other.end == p2 =>
-          Seq(Range(p1, p2 - 1, increase), Range(p2, p2, increase + other.increase), Range(p2 + 1, p3, increase))
-
-        case Seq(p1, p2, p3) if start == p2 && end == p2 =>
-          Seq(Range(p1, p2 - 1, other.increase), Range(p2, p2, increase + other.increase), Range(p2 + 1, p3, other.increase))
-
-        //Sharing borders
-        case Seq(p1, p2, p3) if start == p1 && other.start == p1 && end == p2 =>
-          Seq(Range(p1, p2, other.increase + increase), Range(p2 + 1, p3, other.increase))
-
-        case Seq(p1, p2, p3) if start == p1 && other.start == p1 && other.end == p2 =>
-          Seq(Range(p1, p2, other.increase + increase), Range(p2 + 1, p3, increase))
-
-        case Seq(p1, p2, p3) if start == p1 && end == p3 && other.end == p3 =>
-          Seq(Range(p1, p2 - 1, increase), Range(p2, p3, increase + other.increase))
-
-        case Seq(p1, p2, p3) if other.start == p1 && end == p3 && other.end == p3 =>
-          Seq(Range(p1, p2 - 1, other.increase), Range(p2, p3, increase + other.increase))
-
-        //Intersect in 4 points
-        case Seq(p1, p2, p3, p4) if start == p1 && end == p4 =>
-          Seq(Range(p1, p2 - 1, increase), Range(p2, p3, increase + other.increase), Range(p3 + 1, p4, increase))
-
-        case Seq(p1, p2, p3, p4) if start == p2 && end == p3 =>
-          Seq(Range(p1, p2 - 1, other.increase), Range(p2, p3, increase + other.increase), Range(p3 + 1, p4, other.increase))
-
-        case Seq(p1, p2, p3, p4) if start == p1 && end == p3 =>
-          Seq(Range(p1, p2 - 1, increase), Range(p2, p3, increase + other.increase), Range(p3 + 1, p4, other.increase))
-
-        case Seq(p1, p2, p3, p4) if start == p2 && end == p4 =>
-          Seq(Range(p1, p2 - 1, other.increase), Range(p2, p3, increase + other.increase), Range(p3 + 1, p4, increase))
-
-        case _ => throw new RuntimeException("UnExpected")
-      }
-
-    }
   }
 
-  def applyQuery(query: Range, currentRanges: Seq[Range]): Seq[Range] = currentRanges match {
-    case Nil => Seq(query)
-    case head :: _ if query.isBefore(head) => Seq(query) ++ currentRanges
-    case head :: tail if query.isAfter(head) => Seq(head) ++ applyQuery(query, tail)
-    case head :: tail => head.splitIntersection(query) match {
-      case firstN :+ last => firstN ++ applyQuery(last, tail)
-      case _ => throw new RuntimeException("It shouldn't be here")
-    }
-  }
 
   // Complete the arrayManipulation function below.
   def arrayManipulation(n: Int, queries: Array[Array[Int]]): Long = {
-    queries
-      .toStream
-      .map(q => new Range(q))
- //     .sortBy{r =>  - r.start}
-      .foldLeft(Seq[Range]()) {
-        (acc, current) => applyQuery(current, acc)
-      }
-      .maxBy(r => r.increase)
-      .increase
+
+
+    val ranges: Array[Range] = queries.map(q => new Range(q))
+    val q = ranges
+      .foldLeft(emptyTree.asInstanceOf[Tree]) { (acc, current) => acc.add(current)}
+
+    return ranges.map{ r => q.sumIntersections(r) }.max
+
   }
 
   def main(args: Array[String]) {
