@@ -1,9 +1,6 @@
-package exercises
-
 import java.util.regex.Pattern
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 //Expression ::= Term [+-] Expression
 //  | Term
@@ -17,14 +14,12 @@ import scala.collection.mutable
 //
 
 
-object ExpressionsV2Solution {
+object ExpressionsV2 {
 
 
   sealed abstract class Expression
 
   case class Literal(x: Long) extends Expression
-
-  case class Variable(name: String) extends Expression
 
   case class Add(x: Expression, y: Expression) extends Expression
 
@@ -38,17 +33,12 @@ object ExpressionsV2Solution {
 
   case class UnaryMinus(innerExpression: Expression) extends Expression
 
-  case class Pow(x : Expression,y: Expression) extends Expression
-
-
 
   class Tokenizer(input: String) {
     val SEPARATOR = ' '
 
     var current = 0
-    val isNumber: Pattern = Pattern.compile("\\d")
-    val isAlpha : Pattern = Pattern.compile("[a-zA-Z]")
-    val bookMarks: mutable.ArrayStack[Int] = mutable.ArrayStack[Int]()
+    val isNumber: Pattern = Pattern.compile("\\d");
 
     def next(): Option[Any] = {
       while (current < input.length && input(current) == SEPARATOR) {
@@ -93,7 +83,6 @@ object ExpressionsV2Solution {
     val MUL = '*'
     val DIV = '/'
     val MINUS = '-'
-    val POW = '^'
 
     val tokenizer = new Tokenizer(input)
 
@@ -143,7 +132,6 @@ object ExpressionsV2Solution {
             parseFactor().map { expr =>
               UnaryMinus(expr)
             }
-          //case POW
           case _ => tokenizer.pushBack(); None
         }
     }
