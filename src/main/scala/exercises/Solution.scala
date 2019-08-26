@@ -1,84 +1,49 @@
-import java.io._
+import java.io.PrintWriter
 
-import scala.annotation.tailrec
 
 object Solution {
 
-  import scala.collection.SortedSet
-
-
-  trait Tree {
-    def add(range: Range): Tree
-    def sumIntersections(toFind: Range) : Long
-
-    val furthestRight: Int
-  }
-
-  case object emptyTree extends Tree {
-    override def add(range: Range): Tree = AugmentedTree.newTree(range)
-
-    override val furthestRight: Int = 0;
-
-    override def sumIntersections(toFind: Range): Long = 0l
-  }
-
-  case class AugmentedTree(range: Range, furthestRight: Int, left: Option[AugmentedTree], right: Option[AugmentedTree]) extends Tree {
-
-    def add(otherRange: Range): AugmentedTree = {
-      if (otherRange.start == range.start && otherRange.end == range.end) {
-        val newRange = Range(range.start, range.end, range.increase + otherRange.increase)
-        AugmentedTree(newRange, furthestRight, left, right)
-      } else if (otherRange.start <= range.start) {
-        left match {
-          case Some(l) => AugmentedTree(range, math.max(furthestRight, otherRange.end), Some(l.add(otherRange)), right)
-          case None => AugmentedTree(range, math.max(furthestRight, otherRange.end), Some(AugmentedTree.newTree(otherRange)), right)
+  def max(ranges: Seq[Seq[Range]]): Long = {
+    ranges.indices.foldLeft((0l, ranges)) {
+      (acc, i) =>
+        acc match {
+          case (m, f :: s :: rest) =>
+            (math.max(m, f.map { r => r.value }.sum), (f.filter(r => r.end > (i+1)) ++ s) :: rest)
+          case (m, f :: Nil) =>
+            (math.max(m, f.map { r => r.value }.sum), Nil)
         }
-      } else {
-        right match {
-          case Some(r) => AugmentedTree(range, math.max(furthestRight, otherRange.end), left, Some(r.add(otherRange)))
-          case None => AugmentedTree(range, math.max(furthestRight, otherRange.end), right, Some(AugmentedTree.newTree(otherRange)))
-        }
-      }
-    }
-
-    def sumIntersections(toFind: Range, total : Long): Long = {
-      val value = if ((range.start > toFind.end) || (range.end < toFind.start)) 0 else range.increase + total
-      (left match {
-          case Some(x) => x.sumIntersections(toFind)
-          case None => value
-        }) +
-          (right match {
-            case Some(x: AugmentedTree) if x.furthestRight >= toFind.start => x.sumIntersections(toFind,value)
-            case _ => value
-          })
-    }
+    }._1
   }
 
-  object AugmentedTree {
-    def newTree(range: Range): AugmentedTree = AugmentedTree(range, range.end, Option.empty, Option.empty)
-  }
-
-
-  case class Range(start: Int, end: Int, increase: Int) {
-    def this(fromArray: Array[Int]) = this(fromArray(0), fromArray(1), fromArray(2))
-
-    def isBefore(other: Range): Boolean = end < other.start
-
-    def isAfter(other: Range): Boolean = other.end < start
-
-  }
+  case class Range(start: Int, end: Int, value: Long)
 
 
   // Complete the arrayManipulation function below.
   def arrayManipulation(n: Int, queries: Array[Array[Int]]): Long = {
 
+    def build(i: Int, acc: (Seq[Range], Seq[Range])): (Seq[Range], Seq[Range]) = acc match {
+      case (s1, f :: rest) if (i + 1) == f.start => build(i, (s1 :+ f, rest))
+      case (_, _) => acc
+    }
 
-    val ranges: Array[Range] = queries.map(q => new Range(q))
-    val q = ranges
-      .foldLeft(emptyTree.asInstanceOf[Tree]) { (acc, current) => acc.add(current)}
+    val ranges = queries
+      .toStream
+      .map { arr => Range(arr(0), arr(1), arr(2)) }
 
-    return ranges.map{ r => q.sumIntersections(r) }.max
+    val byStart: Seq[Range] = ranges
+      .sortWith { (r1, r2) => r1.start < r2.start }
+      .toList
 
+
+    val t = (0 until n)
+      .foldLeft((Seq[Seq[Range]](), byStart)) {
+        (acc, i) => {
+          val result = build(i, (Seq[Range](), acc._2))
+          (acc._1 :+ result._1, result._2)
+        }
+      }
+
+    max(t._1)
   }
 
   def main(args: Array[String]) {
