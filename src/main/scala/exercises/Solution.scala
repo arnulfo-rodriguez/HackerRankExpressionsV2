@@ -3,17 +3,33 @@ import java.io.PrintWriter
 
 object Solution {
 
-  def max(ranges: Seq[Seq[Range]]): Long = {
-    ranges.indices.foldLeft((0l, ranges)) {
-      (acc, i) =>
-        acc match {
-          case (m, f :: s :: rest) =>
-            (math.max(m, f.map { r => r.value }.sum), (f.filter(r => r.end > (i+1)) ++ s) :: rest)
-          case (m, f :: Nil) =>
-            (math.max(m, f.map { r => r.value }.sum), Nil)
-        }
-    }._1
+
+  def max(n: Int, byStart: Seq[Range]): Long = {
+
+    @scala.annotation.tailrec
+    def maxRec(max: Long, iTotal: Long, i: Int, currentSet: scala.collection.immutable.Map[Int, Long], ranges: Seq[Range]): Long = ranges match {
+      case current :: rest if current.start == i =>
+        maxRec(max,
+          iTotal + current.value,
+          i,
+          currentSet + (current.end -> (currentSet.getOrElse(current.end, 0l) + current.value)),
+          rest
+        )
+      case _ if i <= n => {
+        val newMax = math.max(max, iTotal)
+        val toRemove = currentSet.getOrElse(i, 0l)
+        val newITotal = iTotal - toRemove
+        maxRec(newMax, newITotal, i + 1, currentSet, ranges)
+      }
+      case _ if i > n => {
+        max
+      }
+    }
+
+    maxRec(0l, 0l, 1, scala.collection.immutable.Map(), byStart)
   }
+
+
 
   case class Range(start: Int, end: Int, value: Long)
 
@@ -21,29 +37,12 @@ object Solution {
   // Complete the arrayManipulation function below.
   def arrayManipulation(n: Int, queries: Array[Array[Int]]): Long = {
 
-    def build(i: Int, acc: (Seq[Range], Seq[Range])): (Seq[Range], Seq[Range]) = acc match {
-      case (s1, f :: rest) if (i + 1) == f.start => build(i, (s1 :+ f, rest))
-      case (_, _) => acc
-    }
-
-    val ranges = queries
+    val byStart: Seq[Range] = queries
       .toStream
       .map { arr => Range(arr(0), arr(1), arr(2)) }
+      .sortWith { (r1, r2) => (r1.start < r2.start) || ((r1.start == r2.start) && (r1.end < r2.end)) }
 
-    val byStart: Seq[Range] = ranges
-      .sortWith { (r1, r2) => r1.start < r2.start }
-      .toList
-
-
-    val t = (0 until n)
-      .foldLeft((Seq[Seq[Range]](), byStart)) {
-        (acc, i) => {
-          val result = build(i, (Seq[Range](), acc._2))
-          (acc._1 :+ result._1, result._2)
-        }
-      }
-
-    max(t._1)
+    max(n, byStart)
   }
 
   def main(args: Array[String]) {
