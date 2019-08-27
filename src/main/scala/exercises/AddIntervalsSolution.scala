@@ -1,7 +1,7 @@
 import java.io.PrintWriter
 
 
-object Solution {
+object AddIntervalsSolution {
 
 
   def max(n: Int, byStart: Seq[Range]): Long = {
