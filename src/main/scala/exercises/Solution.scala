@@ -5,35 +5,40 @@ import java.io.PrintWriter
 object Solution {
 
   // Complete the solve function below.
-  def solve(arr: Array[Int]): Long = {
-    def solveRec(start: Int, prevArrayCount: Long, prevMax: Int): (Long, Int) = {
-      if (start > 0 && arr(start) <= arr(start - 1) && arr(start) <= prevMax) {
-        if (arr(start).toLong * arr(start - 1) <= prevMax) {
-          (prevArrayCount - 1, prevMax)
-        } else {
-          (prevArrayCount, prevMax)
-        }
+  def solve(array: Array[Int]): Long = {
+
+    def accumulate(i: Int, prevCount: Long, prevMax: Int): (Long, Int) = {
+      if ((i > 0) && (array(i) == array(i - 1)) && (prevCount > 0)) {
+        (
+          prevCount - 1,
+          prevMax
+        )
+      } else if ((i > 0) && (array(i) >= array(i - 1)) && (prevCount == 0)) {
+        (
+          0l,
+          math.max(prevMax, array(i))
+        )
       } else {
-        ((start + 1) until arr.length)
-          .foldLeft((0l, arr(start))) {
-            (acc, j) => {
+        ((i + 1) until array.length).
+          foldLeft((0l, array(i))) {
+            (acc, j) =>
               acc match {
-                case (count, max) => {
-                  (count + (if ((arr(start).toLong * arr(j).toLong) <= math.max(arr(j), max)) 1l else 0l),
-                    math.max(arr(j), max)
-                  )
-                }
+                case (count, max) => (
+                  count + (if ((array(i).toLong * array(j).toLong) <= math.max(max, array(j))) 1l else 0l),
+                  math.max(max, array(j))
+                )
               }
-            }
           }
       }
     }
 
-    (0 to arr.length - 2)
-        .map
-    solveRec(0,0l,0)
-
+    (0 to (array.length - 2))
+      .foldLeft((0l, 0l, array(0))) { (acc, i) =>
+        val tuple = accumulate(i, acc._2, acc._3)
+        (acc._1 + tuple._1, tuple._1, tuple._2)
+      }._1
   }
+
 
   def main(args: Array[String]) {
     val stdin = scala.io.StdIn
