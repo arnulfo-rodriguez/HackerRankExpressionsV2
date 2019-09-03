@@ -2,41 +2,41 @@ package exercises
 
 import java.io.PrintWriter
 
+
 object Solution {
+
 
   // Complete the solve function below.
   def solve(array: Array[Int]): Long = {
 
-    def accumulate(i: Int, prevCount: Long, prevMax: Int): (Long, Int) = {
-      if ((i > 0) && (array(i) == array(i - 1)) && (prevCount > 0)) {
-        (
-          prevCount - 1,
-          prevMax
-        )
-      } else if ((i > 0) && (array(i) >= array(i - 1)) && (prevCount == 0)) {
-        (
-          0l,
-          math.max(prevMax, array(i))
-        )
-      } else {
-        ((i + 1) until array.length).
-          foldLeft((0l, array(i))) {
-            (acc, j) =>
-              acc match {
-                case (count, max) => (
-                  count + (if ((array(i).toLong * array(j).toLong) <= math.max(max, array(j))) 1l else 0l),
-                  math.max(max, array(j))
-                )
-              }
-          }
-      }
+    val sortedWithIndex = array.indices.sortWith{(p1,p2) => array(p1) > array(p2)}
+    val allSets : Seq[(Int,Int,Int,Int)] = (0 to array.length -2).flatMap{
+      i => ((i + 1) until array.length).map{j => (i,j,array(i),array(j))}
     }
 
-    (0 to (array.length - 2))
-      .foldLeft((0l, 0l, array(0))) { (acc, i) =>
-        val tuple = accumulate(i, acc._2, acc._3)
-        (acc._1 + tuple._1, tuple._1, tuple._2)
-      }._1
+
+    @scala.annotation.tailrec
+    def addRec(allSetsContainingPoint: Seq[(Int, Int, Int, Int)], index: Int,acc : Long): Long = allSetsContainingPoint match {
+      case (i,j,arr_i,arr_j)::rest if (arr_i * arr_j) <= array(index) => addRec(rest,index,acc + 1)
+      case _ => acc
+    }
+
+    def solvePoint(index : Int,total : Long,remaining : List[(Int,Int,Int,Int)]) : (Long,List[(Int,Int,Int,Int)]) = {
+       val allSetsContainingPoint = remaining.filter{r  =>
+         r match {
+           case (i,j,_,_) if (i < index) && (j >= index) => true
+           case (i,j,_,_) if i == index => true
+           case _ => false
+         }
+       }.sortWith{
+         (a,b) => (a._3 * a._4) < (b._3 * b._4)
+       }
+      (total + addRec(allSetsContainingPoint,index,0l), remaining diff allSetsContainingPoint)
+    }
+
+    sortedWithIndex.foldLeft((0l,allSets.toList)){
+      (acc,i) => solvePoint(i,acc._1,acc._2)
+    }._1
   }
 
 
