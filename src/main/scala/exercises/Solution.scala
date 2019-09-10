@@ -2,41 +2,46 @@ package exercises
 
 import java.io.PrintWriter
 
+import scala.annotation.tailrec
+import scala.collection.mutable
 
 object Solution {
 
 
+
+  def addSorted(i: Int,priorityQueue: Seq[Int]) = {
+    @tailrec
+    def addSortedRec(newElement: Int, existing: Seq[Int], acc: Seq[Int]): Seq[Int] = existing match {
+      case first :: rest if newElement <= first => acc ++ (newElement :: first :: rest)
+      case first :: rest => addSortedRec(newElement, rest, acc :+ first)
+      case _ => acc :+ newElement
+    }
+    addSortedRec(i,priorityQueue,Seq())
+  }
+
   // Complete the solve function below.
   def solve(array: Array[Int]): Long = {
 
-    val sortedWithIndex = array.indices.sortWith{(p1,p2) => array(p1) > array(p2)}
-    val allSets : Seq[(Int,Int,Int,Int)] = (0 to array.length -2).flatMap{
-      i => ((i + 1) until array.length).map{j => (i,j,array(i),array(j))}
+    def countWhile(priorityQueue: Seq[Int],  f:  Int => Boolean) : Long = {
+      def spanRec(iterator: Seq[Int], acc: Long): Long = iterator match {
+        case first::rest if f(first) => spanRec(rest,acc + 1)
+        case _ => acc
+      }
+      spanRec(priorityQueue, 0l)
     }
 
-
-    @scala.annotation.tailrec
-    def addRec(allSetsContainingPoint: Seq[(Int, Int, Int, Int)], index: Int,acc : Long): Long = allSetsContainingPoint match {
-      case (i,j,arr_i,arr_j)::rest if (arr_i * arr_j) <= array(index) => addRec(rest,index,acc + 1)
-      case _ => acc
+    def solveRec(current: Int, priorityQueue: Seq[Int], max : Int, total : Long): Long = current match {
+      case 0 =>
+        solveRec(1,addSorted(array(current),priorityQueue),array(current),total)
+      case i if i < array.length => {
+        val iThElement = array(i)
+        val newMax = math.max(max, iThElement)
+        val matchesCount = countWhile(priorityQueue,v => (v.toLong * iThElement.toLong) <= newMax)
+        solveRec(i + 1,addSorted(iThElement,priorityQueue),newMax, total + matchesCount)
+      }
+      case _ => total
     }
-
-    def solvePoint(index : Int,total : Long,remaining : List[(Int,Int,Int,Int)]) : (Long,List[(Int,Int,Int,Int)]) = {
-       val allSetsContainingPoint = remaining.filter{r  =>
-         r match {
-           case (i,j,_,_) if (i < index) && (j >= index) => true
-           case (i,j,_,_) if i == index => true
-           case _ => false
-         }
-       }.sortWith{
-         (a,b) => (a._3 * a._4) < (b._3 * b._4)
-       }
-      (total + addRec(allSetsContainingPoint,index,0l), remaining diff allSetsContainingPoint)
-    }
-
-    sortedWithIndex.foldLeft((0l,allSets.toList)){
-      (acc,i) => solvePoint(i,acc._1,acc._2)
-    }._1
+    solveRec(0,Seq(),0,0l)
   }
 
 
