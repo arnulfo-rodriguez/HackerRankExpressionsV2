@@ -33,5 +33,6 @@ object ElegantButVeryInefficientMaxSubsetSum extends App {
   }
 
   println(maxSubsetSum(Array(1,2,3,4,5,6,7)))
+  println(maxSubsetSum(Array(-1, -2, 3, 10, 5,-10)))
 
 }
