@@ -1,6 +1,6 @@
 name := "MyProject"
 version := "1.2.8"
-scalaVersion := "2.11.12"
+scalaVersion := "2.13.1"
 
 val akkaVersion = "2.5.22"
 
