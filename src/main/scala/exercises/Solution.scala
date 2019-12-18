@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package exercises
 
 import java.io.PrintWriter
@@ -59,6 +60,59 @@ object Solution {
     val result = solve(arr)
 
     printWriter.println(result)
+=======
+import java.io.PrintWriter
+
+object Solution {
+
+  /*
+   * Complete the twoStacks function below.
+   */
+  def twoStacks(x: Int, a: Array[Int], b: Array[Int]): Int = {
+    twoStacksRec(x, 0, a, 0, b, scala.collection.mutable.Map[(Int,Int),Int]())
+  }
+
+  def twoStacksRec(x: Int, aIndex: Int, a: Array[Int], bIndex: Int, b: Array[Int], results: scala.collection.mutable.Map[(Int,Int),Int]): Int = {
+    if (results.contains((aIndex,bIndex))){
+      results((aIndex,bIndex))
+    } else {
+      val withJustA =
+        if ((aIndex < a.size) && (a(aIndex) <= x)) {
+          1 + twoStacksRec(x - a(aIndex), aIndex + 1, a, bIndex, b, results)
+        } else 0
+      val withJustB =
+        if ((bIndex < b.size) && (b(bIndex) <= x)) {
+          1 + twoStacksRec(x - b(bIndex), aIndex, a, bIndex + 1, b, results)
+        } else 0
+      val result = math.max(withJustA, withJustB)
+      results((aIndex,bIndex)) = result
+      result
+    }
+  }
+  def main(args: Array[String]) {
+    val stdin = scala.io.StdIn
+
+    val printWriter = new PrintWriter(System.out)
+
+    val g = stdin.readLine.trim.toInt
+
+    for (gItr <- 1 to g) {
+      val nmx = stdin.readLine.split(" ")
+
+      val n = nmx(0).trim.toInt
+
+      val m = nmx(1).trim.toInt
+
+      val x = nmx(2).trim.toInt
+
+      val a = stdin.readLine.split(" ").map(_.trim.toInt)
+
+      val b = stdin.readLine.split(" ").map(_.trim.toInt)
+      val result = twoStacks(x, a, b)
+
+      printWriter.println(result)
+    }
+>>>>>>> on solution
 
     printWriter.close()
   }

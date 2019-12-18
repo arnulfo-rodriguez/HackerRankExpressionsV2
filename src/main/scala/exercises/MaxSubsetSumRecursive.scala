@@ -1,10 +1,6 @@
 package exercises
 
-import exercises.MaxSubsetSum.maxSubsetSumRecStart
-
-import scala.math.max
-
-object MaxSubsetSum extends App {
+object MaxSubsetSumRecursive extends App {
 
 
   def maxSubsetSumRecContinue(arr: List[Int]): Int = {
